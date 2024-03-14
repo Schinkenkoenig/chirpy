@@ -4,38 +4,30 @@ import (
 	"net/http"
 )
 
-func middlewareCors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+func FileServerHandler(ac *apiConfig) http.Handler {
+	httpHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(".")))
+	metricsHttp := ac.middlewareMetricsInc(httpHandler)
+
+	return metricsHttp
+}
+
+func Routes(mux *http.ServeMux, ac *apiConfig) {
+	mux.Handle("/app/", FileServerHandler(ac))
+
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("GET /admin/metrics", ac.handlerMetrics)
+	mux.HandleFunc("GET /api/reset", ac.handlerResetMetrics)
 }
 
 func main() {
+	ac := apiConfig{fileserverHits: 0}
 	mux := http.NewServeMux()
-	mux.Handle("/app/", http.StripPrefix("/app/", http.FileServer(http.Dir("."))))
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		body := []byte("OK")
-		w.Write(body)
-	})
+	Routes(mux, &ac)
 
-	corsMux := middlewareCors(mux)
+	corsMux := middlewareCors(middlewareLog(mux))
 
-	http := http.Server{
-		Addr:    "localhost:8080",
-		Handler: corsMux,
-	}
-
-	err := http.ListenAndServe()
+	err := http.ListenAndServe(":8080", corsMux)
 	if err != nil {
 		panic("oh no")
 	}
