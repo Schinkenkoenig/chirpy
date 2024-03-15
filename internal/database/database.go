@@ -15,8 +15,9 @@ type DBStructure struct {
 }
 
 type User struct {
-	Email string `json:"email"`
-	Id    int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Id       int    `json:"id"`
 }
 
 type Chirp struct {

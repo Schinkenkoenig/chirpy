@@ -27,6 +27,7 @@ func Routes(mux *http.ServeMux, ac *apiConfig) {
 	mux.HandleFunc("GET /api/reset", ac.handlerResetMetrics)
 	mux.HandleFunc("POST /api/chirps", ac.AddChirpHandler)
 	mux.HandleFunc("POST /api/users", ac.AddUserHandler)
+	mux.HandleFunc("POST /api/login", ac.LoginUserHandler)
 	mux.HandleFunc("GET /api/chirps", ac.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{id}", ac.GetChirpByIdHandler)
 }
@@ -47,7 +48,9 @@ func (ac *apiConfig) GetChirpByIdHandler(httpWriter http.ResponseWriter, httpReq
 		return
 	}
 
-	respondWithJSON(httpWriter, 200, chirp)
+	resp := ChirpResponse{Id: chirp.Id, Body: chirp.Body}
+
+	respondWithJSON(httpWriter, 200, resp)
 }
 
 func (ac *apiConfig) GetChirpsHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
@@ -61,43 +64,69 @@ func (ac *apiConfig) GetChirpsHandler(httpWriter http.ResponseWriter, httpReques
 		return
 	}
 
-	fmt.Printf("%v", chirps)
+	chirpsResponse := make([]ChirpResponse, 0, len(chirps))
 
-	respondWithJSON(httpWriter, 200, chirps)
-}
-
-func (ac *apiConfig) AddUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
-	// unmarshall
-	db := ac.db
-	type Request struct {
-		Email string `json:"email"`
+	for _, c := range chirps {
+		chirpsResponse = append(chirpsResponse, ChirpResponse{Id: c.Id, Body: c.Body})
 	}
 
+	respondWithJSON(httpWriter, 200, chirpsResponse)
+}
+
+func (ac *apiConfig) LoginUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+	// unmarshall
+	db := ac.db
+
 	decoder := json.NewDecoder(httpRequest.Body)
-	var request Request
+	var request userRequest
 	err := decoder.Decode(&request)
 	if err != nil {
 		respondWithError(httpWriter, 500, "Something went wrong")
 		return
 	}
 
-	user, err := db.CreateUser(request.Email)
+	user, err := db.IsPasswordCorrect(request.Email, request.Password)
 	if err != nil {
-		respondWithError(httpWriter, 500, "Internal sever error.")
+		respondWithError(httpWriter, 401, "Internal sever error.")
+		return
 	}
 
-	respondWithJSON(httpWriter, 201, user)
+	resp := UserResponse{Id: user.Id, Email: user.Email}
+
+	respondWithJSON(httpWriter, 200, resp)
+}
+
+func (ac *apiConfig) AddUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+	// unmarshall
+	db := ac.db
+
+	decoder := json.NewDecoder(httpRequest.Body)
+	var request userRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		respondWithError(httpWriter, 500, "Something went wrong")
+		return
+	}
+
+	user, err := db.CreateUser(request.Email, request.Password)
+	if err != nil {
+		fmt.Printf("%v", err)
+		respondWithError(httpWriter, 500, "Internal sever error.")
+		return
+	}
+
+	resp := UserResponse{Id: user.Id, Email: user.Email}
+
+	respondWithJSON(httpWriter, 201, resp)
 }
 
 func (ac *apiConfig) AddChirpHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
 	// unmarshall
 	db := ac.db
-	type Request struct {
-		Body string `json:"body"`
-	}
 
 	decoder := json.NewDecoder(httpRequest.Body)
-	var request Request
+	var request chirpRequest
 	err := decoder.Decode(&request)
 	if err != nil {
 		respondWithError(httpWriter, 500, "Something went wrong")
@@ -115,7 +144,9 @@ func (ac *apiConfig) AddChirpHandler(httpWriter http.ResponseWriter, httpRequest
 		respondWithError(httpWriter, 500, "Internal sever error.")
 	}
 
-	respondWithJSON(httpWriter, 201, chirp)
+	response := ChirpResponse{Id: chirp.Id, Body: chirp.Body}
+
+	respondWithJSON(httpWriter, 201, response)
 }
 
 func cleanupChirp(s string) string {
