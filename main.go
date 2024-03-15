@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	database "github.com/Schinkenkoenig/chirpy/database"
 )
 
 func FileServerHandler(ac *apiConfig) http.Handler {
@@ -20,6 +22,34 @@ func Routes(mux *http.ServeMux, ac *apiConfig) {
 	mux.HandleFunc("GET /admin/metrics", ac.handlerMetrics)
 	mux.HandleFunc("GET /api/reset", ac.handlerResetMetrics)
 	mux.HandleFunc("POST /api/validate_chirp", ValidateChirpHandler)
+}
+
+func (db *database.DB) AddChirpHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+	// unmarshall
+	type Request struct {
+		Body string `json:"body"`
+	}
+
+	decoder := json.NewDecoder(httpRequest.Body)
+	var request Request
+	err := decoder.Decode(&request)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	if len(request.Body) > 140 {
+		respondWithError(w, 400, "Chirp is too long")
+		return
+	}
+	request.Body = cleanupChirp(request.Body)
+
+	db.
+
+		// add to db
+
+		resp := Response{CleanedBody: cleanupChirp(_r.Body)}
+	respondWithJSON(w, 200, resp)
 }
 
 func ValidateChirpHandler(w http.ResponseWriter, r *http.Request) {
