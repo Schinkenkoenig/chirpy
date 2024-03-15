@@ -11,6 +11,12 @@ type DB struct {
 
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
+	Users  map[int]User  `json:"users"`
+}
+
+type User struct {
+	Email string `json:"email"`
+	Id    int    `json:"id"`
 }
 
 type Chirp struct {

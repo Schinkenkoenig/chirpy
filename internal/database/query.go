@@ -1,5 +1,24 @@
 package database
 
+import (
+	"cmp"
+	"errors"
+	"slices"
+)
+
+func (db *DB) GetChirpById(id int) (*Chirp, error) {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return nil, err
+	}
+
+	if v, ok := db_structure.Chirps[id]; ok {
+		return &v, nil
+	}
+
+	return nil, errors.New("not found")
+}
+
 func (db *DB) GetChirps() ([]Chirp, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {
@@ -12,24 +31,10 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 		chirps = append(chirps, v)
 	}
 
+	slices.SortFunc(chirps,
+		func(a, b Chirp) int {
+			return cmp.Compare(a.Id, b.Id)
+		})
+
 	return chirps, nil
-}
-
-// CreateChirp creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (*Chirp, error) {
-	db_structure, err := db.loadDb()
-	if err != nil {
-		return nil, err
-	}
-
-	chirp := Chirp{Body: body}
-
-	db_structure.Chirps[len(db_structure.Chirps)] = chirp
-
-	err = db.writeDb(*db_structure)
-	if err != nil {
-		return nil, err
-	}
-
-	return &chirp, nil
 }

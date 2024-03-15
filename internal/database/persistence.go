@@ -11,6 +11,7 @@ func (db *DB) ensureDb() error {
 	}
 	db_structure := DBStructure{
 		Chirps: make(map[int]Chirp),
+		Users:  make(map[int]User),
 	}
 
 	err := db.writeDb(db_structure)
