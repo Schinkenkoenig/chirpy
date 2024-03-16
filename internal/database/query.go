@@ -19,6 +19,22 @@ func (db *DB) GetChirpById(id int) (*Chirp, error) {
 	return nil, errors.New("not found")
 }
 
+func (db *DB) IsTokenRevoked(userId int, token string) error {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return err
+	}
+
+	if u, ok := db_structure.Users[userId]; ok {
+		if _, ok := u.RevokedTokens[token]; ok {
+			return errors.New("token revoked")
+		}
+		return nil
+	}
+
+	return errors.New("user not found")
+}
+
 func (db *DB) GetChirps() ([]Chirp, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {

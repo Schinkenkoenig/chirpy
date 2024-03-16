@@ -2,6 +2,7 @@ package database
 
 import (
 	"sync"
+	"time"
 )
 
 type DB struct {
@@ -15,18 +16,21 @@ type DBStructure struct {
 }
 
 type User struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Id       int    `json:"id"`
+	RevokedTokens map[string]time.Time `json:"revoked_tokes"`
+	Email         string               `json:"email"`
+	Password      string               `json:"password"`
+	Id            int                  `json:"id"`
 }
 
 type Chirp struct {
-	Body string `json:"body"`
-	Id   int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorId int    `json:"author_id"`
+	Id       int    `json:"id"`
 }
 
 func NewDb(path string) (*DB, error) {
 	// ensure db
+	//
 	db := DB{
 		mux:  &sync.RWMutex{},
 		path: path,

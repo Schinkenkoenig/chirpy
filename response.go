@@ -6,12 +6,14 @@ type UserResponse struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
-	Email string `json:"email"`
-	Id    int    `json:"id"`
+	AccessToken  string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+	Email        string `json:"email"`
+	Id           int    `json:"id"`
 }
 
 type ChirpResponse struct {
-	Body string `json:"body"`
-	Id   int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorId int    `json:"author_id"`
+	Id       int    `json:"id"`
 }

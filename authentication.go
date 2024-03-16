@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -8,31 +9,57 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func (ac *apiConfig) createJwt(userId int, expiresIn time.Duration) (string, error) {
+type JwtTokens struct {
+	accessToken  string
+	refreshToken string
+}
+
+func (ac *apiConfig) createJwt(userId int) (*JwtTokens, error) {
 	issuedAt := jwt.NewNumericDate(time.Now().UTC())
-	expiredAt := jwt.NewNumericDate(time.Now().UTC().Add(expiresIn))
-	issuer := "chirpy"
+
+	expireRefresh := time.Duration(time.Hour * 24 * 60)
+
+	expiredAtAccess := jwt.NewNumericDate(time.Now().UTC().Add(time.Hour))
+	expiredAtRefresh := jwt.NewNumericDate(time.Now().UTC().Add(expireRefresh))
+	issuerAccess := "chirpy-access"
+	issuerRefresh := "chirpy-refresh"
 	subject := fmt.Sprintf("%d", userId)
 
-	fmt.Printf("%v\n", expiredAt)
-
-	tok := jwt.NewWithClaims(
+	accessTok := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.RegisteredClaims{
-			Issuer:    issuer,
+			Issuer:    issuerAccess,
 			IssuedAt:  issuedAt,
-			ExpiresAt: expiredAt,
+			ExpiresAt: expiredAtAccess,
 			Subject:   subject,
 		})
 
-	jwt, err := tok.SignedString([]byte(ac.jwtSecret))
+	refreshTok := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		jwt.RegisteredClaims{
+			Issuer:    issuerRefresh,
+			IssuedAt:  issuedAt,
+			ExpiresAt: expiredAtRefresh,
+			Subject:   subject,
+		})
+
+	jwtAccess, err := accessTok.SignedString([]byte(ac.jwtSecret))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return jwt, nil
+	jwtRefresh, err := refreshTok.SignedString([]byte(ac.jwtSecret))
+	if err != nil {
+		return nil, err
+	}
+
+	t := JwtTokens{accessToken: jwtAccess, refreshToken: jwtRefresh}
+
+	return &t, nil
 }
 
+// i have no idea has this should work??
+// why do i have to provide claims? are there filled after or not???
 func (ac *apiConfig) validateJwt(tok string) (int, error) {
 	var claims jwt.RegisteredClaims
 	token, err := jwt.ParseWithClaims(tok, &claims, func(t *jwt.Token) (interface{}, error) {
@@ -42,7 +69,41 @@ func (ac *apiConfig) validateJwt(tok string) (int, error) {
 		return 0, err
 	}
 
-	subject, err := token.Claims.(*jwt.RegisteredClaims).GetSubject()
+	_claims := token.Claims.(*jwt.RegisteredClaims)
+
+	if _claims.Issuer != "chirpy-access" {
+		return 0, errors.New("wrong issuer")
+	}
+
+	subject, err := _claims.GetSubject()
+	if err != nil {
+		return 0, err
+	}
+
+	userId, err := strconv.Atoi(subject)
+	if err != nil {
+		return 0, err
+	}
+
+	return userId, nil
+}
+
+func (ac *apiConfig) validateRefreshJwt(tok string) (int, error) {
+	var claims jwt.RegisteredClaims
+	token, err := jwt.ParseWithClaims(tok, &claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(ac.jwtSecret), nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	_claims := token.Claims.(*jwt.RegisteredClaims)
+
+	if _claims.Issuer != "chirpy-refresh" {
+		return 0, errors.New("wrong issuer")
+	}
+
+	subject, err := _claims.GetSubject()
 	if err != nil {
 		return 0, err
 	}

@@ -2,6 +2,7 @@ package database
 
 import (
 	"errors"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,6 +36,28 @@ func (db *DB) IsPasswordCorrect(email string, password string) (*User, error) {
 	return u, nil
 }
 
+func (db *DB) RevokeToken(userId int, token string) error {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return err
+	}
+
+	u, ok := db_structure.Users[userId]
+
+	if !ok {
+		return errors.New("user not found")
+	}
+
+	u.RevokedTokens[token] = time.Now().UTC()
+
+	err = db.writeDb(*db_structure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (db *DB) UpdateUser(userId int, email, password string) (*User, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {
@@ -42,18 +65,15 @@ func (db *DB) UpdateUser(userId int, email, password string) (*User, error) {
 	}
 
 	// exist
-
-	if _, ok := db_structure.Users[userId]; !ok {
+	user, ok := db_structure.Users[userId]
+	if !ok {
 		return nil, errors.New("not found")
 	}
 
 	hash, err := hashPassword(password)
 
-	user := User{
-		Email:    email,
-		Id:       userId,
-		Password: hash,
-	}
+	user.Email = email
+	user.Password = hash
 
 	if err != nil {
 		return nil, err
@@ -85,9 +105,10 @@ func (db *DB) CreateUser(email string, password string) (*User, error) {
 	hash, err := hashPassword(password)
 
 	user := User{
-		Email:    email,
-		Id:       user_id,
-		Password: hash,
+		Email:         email,
+		Id:            user_id,
+		Password:      hash,
+		RevokedTokens: make(map[string]time.Time),
 	}
 
 	if err != nil {
@@ -120,14 +141,14 @@ func hashPassword(password string) (string, error) {
 }
 
 // CreateChirp creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (*Chirp, error) {
+func (db *DB) CreateChirp(userId int, body string) (*Chirp, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {
 		return nil, err
 	}
 
 	chirp_id := len(db_structure.Chirps) + 1
-	chirp := Chirp{Body: body, Id: chirp_id}
+	chirp := Chirp{Body: body, Id: chirp_id, AuthorId: userId}
 
 	db_structure.Chirps[chirp_id] = chirp
 

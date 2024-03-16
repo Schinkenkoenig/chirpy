@@ -6,7 +6,6 @@ type userRequest struct {
 }
 
 type loginRequest struct {
-	ExpiresIn *int `json:"expires_in_seconds"`
 	userRequest
 }
 
