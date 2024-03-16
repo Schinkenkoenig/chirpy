@@ -35,6 +35,46 @@ func (db *DB) IsPasswordCorrect(email string, password string) (*User, error) {
 	return u, nil
 }
 
+func (db *DB) UpdateUser(userId int, email, password string) (*User, error) {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return nil, err
+	}
+
+	// exist
+
+	if _, ok := db_structure.Users[userId]; !ok {
+		return nil, errors.New("not found")
+	}
+
+	hash, err := hashPassword(password)
+
+	user := User{
+		Email:    email,
+		Id:       userId,
+		Password: hash,
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	u, _ := db.getUserByEmail(email)
+
+	if u != nil {
+		return nil, errors.New("user with this email already exists")
+	}
+
+	db_structure.Users[userId] = user
+
+	err = db.writeDb(*db_structure)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func (db *DB) CreateUser(email string, password string) (*User, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {

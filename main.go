@@ -8,8 +8,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	database "github.com/Schinkenkoenig/chirpy/internal/database"
+	"github.com/joho/godotenv"
 )
 
 func FileServerHandler(ac *apiConfig) http.Handler {
@@ -27,6 +29,7 @@ func Routes(mux *http.ServeMux, ac *apiConfig) {
 	mux.HandleFunc("GET /api/reset", ac.handlerResetMetrics)
 	mux.HandleFunc("POST /api/chirps", ac.AddChirpHandler)
 	mux.HandleFunc("POST /api/users", ac.AddUserHandler)
+	mux.HandleFunc("PUT /api/users", ac.UpdateUserHandler)
 	mux.HandleFunc("POST /api/login", ac.LoginUserHandler)
 	mux.HandleFunc("GET /api/chirps", ac.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{id}", ac.GetChirpByIdHandler)
@@ -73,12 +76,45 @@ func (ac *apiConfig) GetChirpsHandler(httpWriter http.ResponseWriter, httpReques
 	respondWithJSON(httpWriter, 200, chirpsResponse)
 }
 
-func (ac *apiConfig) LoginUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+func (ac *apiConfig) UpdateUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
 	// unmarshall
 	db := ac.db
 
 	decoder := json.NewDecoder(httpRequest.Body)
 	var request userRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		respondWithError(httpWriter, 500, "Something went wrong")
+		return
+	}
+
+	authHeader := httpRequest.Header.Get("Authorization")
+	tok := strings.Replace(authHeader, "Bearer ", "", 1)
+
+	userId, err := ac.validateJwt(tok)
+	if err != nil {
+		respondWithError(httpWriter, 401, "token invalid")
+		fmt.Printf("token: '%s' could not be parsded, err: %v\n", tok, err)
+		return
+	}
+
+	updated, err := db.UpdateUser(userId, request.Email, request.Password)
+	if err != nil {
+		respondWithError(httpWriter, 404, "not found")
+		return
+	}
+
+	resp := UserResponse{Email: updated.Email, Id: updated.Id}
+
+	respondWithJSON(httpWriter, 200, resp)
+}
+
+func (ac *apiConfig) LoginUserHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+	// unmarshall
+	db := ac.db
+
+	decoder := json.NewDecoder(httpRequest.Body)
+	var request loginRequest
 	err := decoder.Decode(&request)
 	if err != nil {
 		respondWithError(httpWriter, 500, "Something went wrong")
@@ -91,7 +127,28 @@ func (ac *apiConfig) LoginUserHandler(httpWriter http.ResponseWriter, httpReques
 		return
 	}
 
-	resp := UserResponse{Id: user.Id, Email: user.Email}
+	expiresIn := time.Hour * 24
+
+	if request.ExpiresIn != nil {
+		fmt.Printf("expires was provided: %d", *request.ExpiresIn)
+		seconds := time.Second * time.Duration(*request.ExpiresIn)
+
+		if seconds < expiresIn {
+			expiresIn = seconds
+		}
+
+		fmt.Printf("expires ultimately is %v", expiresIn)
+
+	}
+
+	tok, err := ac.createJwt(user.Id, expiresIn)
+	if err != nil {
+		respondWithError(httpWriter, 500, "could not create token")
+		fmt.Println(err)
+		return
+	}
+
+	resp := LoginResponse{Id: user.Id, Email: user.Email, Token: tok}
 
 	respondWithJSON(httpWriter, 200, resp)
 }
@@ -144,7 +201,10 @@ func (ac *apiConfig) AddChirpHandler(httpWriter http.ResponseWriter, httpRequest
 		respondWithError(httpWriter, 500, "Internal sever error.")
 	}
 
-	response := ChirpResponse{Id: chirp.Id, Body: chirp.Body}
+	response := ChirpResponse{
+		Id:   chirp.Id,
+		Body: chirp.Body,
+	}
 
 	respondWithJSON(httpWriter, 201, response)
 }
@@ -168,13 +228,21 @@ func main() {
 		os.Remove(filename)
 	}
 
+	godotenv.Load()
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	if jwtSecret == "" {
+		panic("environment variable JWT_SECRET needs to be set.")
+	}
+
 	db, err := database.NewDb(filename)
 	if err != nil {
 		panic(err)
 	}
 
 	mux := http.NewServeMux()
-	ac := apiConfig{fileserverHits: 0, db: db}
+	ac := apiConfig{fileserverHits: 0, db: db, jwtSecret: jwtSecret}
 
 	Routes(mux, &ac)
 
