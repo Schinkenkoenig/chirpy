@@ -81,6 +81,48 @@ func (ac *apiConfig) GetChirpByIdHandler(httpWriter http.ResponseWriter, httpReq
 	respondWithJSON(httpWriter, 200, resp)
 }
 
+func (ac *apiConfig) DeleteChirpHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
+	// validate jwt and stuff
+	// unmarshall
+	db := ac.db
+
+	authHeader := httpRequest.Header.Get("Authorization")
+	tok := strings.Replace(authHeader, "Bearer ", "", 1)
+
+	userId, err := ac.validateJwt(tok)
+	if err != nil {
+		respondWithError(httpWriter, 401, "token invalid")
+		fmt.Printf("token: '%s' could not be parsded, err: %v\n", tok, err)
+		return
+	}
+
+	id, err := strconv.Atoi(httpRequest.PathValue("id"))
+	if err != nil {
+		respondWithError(httpWriter, 400, "Please provide an integer as the id")
+		return
+	}
+
+	chirp, err := db.GetChirpById(id)
+	if err != nil {
+		respondWithError(httpWriter, 404, "chirp not found")
+		return
+	}
+
+	if chirp.AuthorId != userId {
+		respondWithError(httpWriter, 403, "not allowed to delete others chirsp")
+		return
+	}
+
+	err = db.DeleteChirp(userId)
+	if err != nil {
+		respondWithError(httpWriter, 500, "Internal sever error.")
+		return
+	}
+
+	httpWriter.WriteHeader(200)
+	httpWriter.Write([]byte{})
+}
+
 func (ac *apiConfig) GetChirpsHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
 	// unmarshall
 	db := ac.db

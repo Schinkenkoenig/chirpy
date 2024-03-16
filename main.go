@@ -29,6 +29,7 @@ func Routes(mux *http.ServeMux, ac *apiConfig) {
 
 	// api/chirps
 	mux.HandleFunc("POST /api/chirps", ac.AddChirpHandler)
+	mux.HandleFunc("DELETE /api/chirps/{id}", ac.DeleteChirpHandler)
 	mux.HandleFunc("GET /api/chirps", ac.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{id}", ac.GetChirpByIdHandler)
 

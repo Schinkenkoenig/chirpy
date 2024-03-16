@@ -140,6 +140,22 @@ func hashPassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
+func (db *DB) DeleteChirp(userId int) error {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return err
+	}
+
+	delete(db_structure.Chirps, userId)
+
+	err = db.writeDb(*db_structure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CreateChirp creates a new chirp and saves it to disk
 func (db *DB) CreateChirp(userId int, body string) (*Chirp, error) {
 	db_structure, err := db.loadDb()
