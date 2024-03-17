@@ -58,6 +58,30 @@ func (db *DB) RevokeToken(userId int, token string) error {
 	return nil
 }
 
+func (db *DB) UpgradeUser(userId int) (*User, error) {
+	db_structure, err := db.loadDb()
+	if err != nil {
+		return nil, err
+	}
+
+	// exist
+	user, ok := db_structure.Users[userId]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+
+	user.IsChirpyRed = true
+
+	db_structure.Users[userId] = user
+
+	err = db.writeDb(*db_structure)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func (db *DB) UpdateUser(userId int, email, password string) (*User, error) {
 	db_structure, err := db.loadDb()
 	if err != nil {

@@ -127,7 +127,25 @@ func (ac *apiConfig) GetChirpsHandler(httpWriter http.ResponseWriter, httpReques
 	// unmarshall
 	db := ac.db
 
-	chirps, err := db.GetChirps()
+	authorIdQuery := httpRequest.URL.Query().Get("author_id")
+	sort := httpRequest.URL.Query().Get("sort")
+
+	var authorId *int
+	asc := true
+
+	if authorIdQuery != "" {
+		id, err := strconv.Atoi(authorIdQuery)
+
+		if err == nil {
+			authorId = &id
+		}
+	}
+
+	if sort == "desc" {
+		asc = false
+	}
+
+	chirps, err := db.GetChirps(authorId, asc)
 	if err != nil {
 		respondWithError(httpWriter, 500, "Internal sever error.")
 		fmt.Println(err)

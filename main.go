@@ -41,6 +41,9 @@ func Routes(mux *http.ServeMux, ac *apiConfig) {
 	// api/users
 	mux.HandleFunc("POST /api/users", ac.AddUserHandler)
 	mux.HandleFunc("PUT /api/users", ac.UpdateUserHandler)
+
+	// webhooks
+	mux.HandleFunc("POST /api/polka/webhooks", ac.webhookHandler)
 }
 
 func main() {
@@ -61,13 +64,18 @@ func main() {
 		panic("environment variable JWT_SECRET needs to be set.")
 	}
 
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		panic("environment variable POLKA_KEY needs to be set.")
+	}
+
 	// db creation
 	db, err := database.NewDb(filename)
 	if err != nil {
 		panic(err)
 	}
 
-	ac := apiConfig{fileserverHits: 0, db: db, jwtSecret: jwtSecret}
+	ac := apiConfig{fileserverHits: 0, db: db, jwtSecret: jwtSecret, polkaKey: polkaKey}
 
 	// http mux
 	mux := http.NewServeMux()

@@ -20,6 +20,7 @@ type User struct {
 	Email         string               `json:"email"`
 	Password      string               `json:"password"`
 	Id            int                  `json:"id"`
+	IsChirpyRed   bool                 `json:"is_chirpy_red"`
 }
 
 type Chirp struct {

@@ -88,7 +88,15 @@ func (ac *apiConfig) LoginUserHandler(httpWriter http.ResponseWriter, httpReques
 		return
 	}
 
-	resp := LoginResponse{Id: user.Id, Email: user.Email, AccessToken: tok.accessToken, RefreshToken: tok.refreshToken}
+	resp := LoginResponse{
+		UserResponse: UserResponse{
+			Id:          user.Id,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
+		},
+		AccessToken:  tok.accessToken,
+		RefreshToken: tok.refreshToken,
+	}
 
 	respondWithJSON(httpWriter, 200, resp)
 }

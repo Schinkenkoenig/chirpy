@@ -12,3 +12,10 @@ type loginRequest struct {
 type chirpRequest struct {
 	Body string `json:"body"`
 }
+
+type webhookRequest struct {
+	Event string `json:"event"`
+	Data  struct {
+		UserId int `json:"user_id"`
+	} `json:"data"`
+}

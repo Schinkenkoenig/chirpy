@@ -35,7 +35,7 @@ func (ac *apiConfig) UpdateUserHandler(httpWriter http.ResponseWriter, httpReque
 		return
 	}
 
-	resp := UserResponse{Email: updated.Email, Id: updated.Id}
+	resp := UserResponse{Email: updated.Email, Id: updated.Id, IsChirpyRed: updated.IsChirpyRed}
 
 	respondWithJSON(httpWriter, 200, resp)
 }
@@ -60,7 +60,7 @@ func (ac *apiConfig) AddUserHandler(httpWriter http.ResponseWriter, httpRequest 
 		return
 	}
 
-	resp := UserResponse{Id: user.Id, Email: user.Email}
+	resp := UserResponse{Email: user.Email, Id: user.Id, IsChirpyRed: user.IsChirpyRed}
 
 	respondWithJSON(httpWriter, 201, resp)
 }

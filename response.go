@@ -1,15 +1,15 @@
 package main
 
 type UserResponse struct {
-	Email string `json:"email"`
-	Id    int    `json:"id"`
+	Email       string `json:"email"`
+	IsChirpyRed bool   `json:"is_chirpy_red"`
+	Id          int    `json:"id"`
 }
 
 type LoginResponse struct {
 	AccessToken  string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
-	Email        string `json:"email"`
-	Id           int    `json:"id"`
+	UserResponse
 }
 
 type ChirpResponse struct {
